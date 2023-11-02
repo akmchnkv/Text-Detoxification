@@ -1,45 +1,29 @@
 import os
-import requests
+import zipfile
 import pandas as pd
-from zipfile import ZipFile
+import requests
 
-# Constants
 DATA_URL = "https://github.com/skoltech-nlp/detox/releases/download/emnlp2021/filtered_paranmt.zip"
 DATA_DIR = "../data/raw"
 ZIP_FILE_PATH = os.path.join(DATA_DIR, "filtered_paranmt.zip")
 EXTRACTED_DIR = os.path.join(DATA_DIR, "filtered_paranmt")
 
-def download_data(url, save_path):
-    if not os.path.exists(save_path):
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        with requests.get(url, stream=True) as response:
-            with open(save_path, "wb") as file:
-                for chunk in response.iter_content(chunk_size=8192):
-                    file.write(chunk)
+def download_and_extract_dataset(url, zip_file_path, extracted_dir):
+    # Download the zip file
+    response = requests.get(url)
+    with open(zip_file_path, 'wb') as zip_file:
+        zip_file.write(response.content)
 
-def extract_data(zip_file, extract_path):
-    with ZipFile(zip_file, 'r') as zip_ref:
-        zip_ref.extractall(extract_path)
+    with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+        zip_ref.extractall(extracted_dir)
 
-def load_data(file_path):
-    data = pd.read_csv(file_path, sep='\t')
-    return data
+def load_dataframe(extracted_dir, tsv_file_name='filtered.tsv'):
+    tsv_file_path = os.path.join(extracted_dir, tsv_file_name)
 
-def save_processed_data(data, save_path):
-    data.to_csv(save_path, index=False)
+    # Check file existence and extract the dataset if necessary
+    if not os.path.exists(tsv_file_path):
+        download_and_extract_dataset(DATA_URL, ZIP_FILE_PATH, EXTRACTED_DIR)
 
-def main():
-    # Download and extract data
-    download_data(DATA_URL, ZIP_FILE_PATH)
-    extract_data(ZIP_FILE_PATH, EXTRACTED_DIR)
-
-    # Load the data
-    data_path = os.path.join(EXTRACTED_DIR, "filtered_paranmt.tsv")
-    dataset = load_data(data_path)
-
-    # Process and save the data
-    processed_data_path = os.path.join("../data/interim", "processed_data.csv")
-    save_processed_data(dataset, processed_data_path)
-
-if __name__ == "__main__":
-    main()
+    # Read the TSV file into a DataFrame and drop unnecessary columns
+    dataframe = pd.read_csv(tsv_file_path, delimiter='\t')
+    return dataframe)
